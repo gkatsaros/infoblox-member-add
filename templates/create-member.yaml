@@ -1,0 +1,16 @@
+rest_calls:
+  - path: /wapi/v2.2/member
+    method: POST
+    headers:
+      accept: application/json
+    payload:
+      host_name: '0123-4567-89ab-cdef.foobarinfra.net'
+      #vip_setting: '{{VIP_SETTINGS}}'
+      vip_setting:
+        address: '{{ADDRESS}}'
+        gateway: '{{GATEWAY}}'
+        subnet_mask: '{{SUBNET}}'
+      platform: 'VNIOS'
+    #response_format: json
+    recoverable_codes: [400]
+    response_translation: [member_ref]

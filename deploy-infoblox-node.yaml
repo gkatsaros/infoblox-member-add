@@ -1,0 +1,315 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.3/types.yaml
+  - plugin:cloudify-awssdk-plugin
+  - plugin:cloudify-utilities-plugin
+  #- imports/cloud-config.yaml
+
+inputs:
+
+  ami:
+    description: >
+      An AWS AMI. Validated for the Infoblox NIOS 8.2.1 359366 DDI BYOL  deployment with AMI ID ami-26dacb42
+    default: { get_attribute: [ infoblox_nios_ami, aws_resource_id ] }
+
+  instance_type:
+    description: >
+      The AWS instance_type. Tested with m3.medium, although that is unnecessarily large.
+    default: r4.xlarge 
+
+  agent_user:
+    description: >
+      The username of the agent running on the instance created from the image.
+    default: admin 
+
+  agent_key_private:
+    description: >
+      The content of the agent's private key.
+    default: { get_secret: agent_key_private }
+
+  agent_key_public:
+    description: >
+      The content of the agent's public key.
+    default: { get_secret: agent_key_public }
+  
+  aws_vpc_id:
+    description: >
+      The VPC ID from EC2
+    #default: "vpc-0da01b2bf9521e951"
+    default: "vpc-d21bc6ba"
+
+
+  aws_private_subnet_id:
+   description: >
+     The VPC Private Subnet ID from EC2
+   #default: "subnet-079718c681ba8ee83"
+   default: subnet-04c238e1b44261019
+
+  aws_public_subnet_id:
+    description: >
+      The VPC Public Subnet ID from EC2
+    #default: "subnet-04898d743bd52476f"
+    default: subnet-340efd4e
+
+
+  aws_availability_zone:
+    description: >
+      The assigned VPC availability zone for EC2
+    default: "eu-west-2a"
+
+  aws_user_data:
+    description: >
+      The User Data (Cloud Init) data for Instance
+    default: { get_secret: infoblox_config } 
+
+  aws_keypair_name:
+    description: >
+      Name of keypair used to acces the appliance
+    default: "tr.ddi"
+
+
+  private_ip_address:
+    default: "172.31.129.60"
+
+  token:
+    default: "dummy"
+
+
+dsl_definitions:
+
+  aws_config: &aws_config
+    aws_access_key_id: { get_secret: aws_access_key_id }
+    aws_secret_access_key: { get_secret: aws_secret_access_key }
+    ec2_region_name: { get_secret: ec2_region_name }
+    ec2_region_endpoint: { get_secret: ec2_region_endpoint }
+
+  client_config: &client_config
+    aws_access_key_id: { get_secret: aws_access_key_id }
+    aws_secret_access_key: { get_secret: aws_secret_access_key }
+    region_name: { get_secret: ec2_region_name }
+
+node_templates:
+
+  host:
+    type: cloudify.nodes.aws.ec2.Instances
+    properties:
+      agent_config:
+        install_method: none
+      use_public_ip: true
+      resource_config:
+        MaxCount: 1
+        MinCount: 1
+        ImageId: { get_input: ami }
+        InstanceType: { get_input: instance_type }
+        kwargs:
+          KeyName: { get_input: aws_keypair_name }
+          BlockDeviceMappings:
+          - DeviceName: '/dev/sda1'
+            Ebs:
+              DeleteOnTermination: True
+          Placement:
+            AvailabilityZone: { get_input: aws_availability_zone }
+          UserData: { get_input: aws_user_data  }
+      client_config: *client_config
+    relationships:
+      - type: cloudify.relationships.depends_on
+        target: nic
+      - type: cloudify.relationships.depends_on
+        target: nic2
+      - type: cloudify.relationships.depends_on
+        target: ip
+      - type: cloudify.relationships.depends_on
+        target: security_group_rules
+      - type: cloudify.relationships.depends_on
+        target: infoblox_nios_ami
+
+  infoblox_nios_ami:
+    type: cloudify.nodes.aws.ec2.Image
+    properties:
+      resource_config:
+        kwargs:
+          Filters:
+          - Name: name
+            Values:
+            - 'Infoblox NIOS 8.2.1 359366 DDI BYOL'
+          - Name: owner-id
+            Values:
+            - '057670693668'
+      client_config: *client_config
+    relationships:
+
+  ip:
+    type: cloudify.nodes.aws.ec2.ElasticIP
+    properties:
+      resource_config:
+        kwargs:
+          Domain: 'vpc'
+      client_config: *client_config
+    relationships:
+    - type: cloudify.relationships.depends_on
+      target: nic2
+
+  nic:
+    type: cloudify.nodes.aws.ec2.Interface
+    properties:
+      client_config: *client_config
+      resource_config:
+        kwargs:
+          Description: Management Grid networking interface 
+          SubnetId: { get_attribute: [ grid_subnet, aws_resource_id] }
+          Groups:
+          - { get_attribute: [ security_group, aws_resource_id ] }
+          PrivateIpAddress: { get_input: private_ip_address }
+    relationships:
+    - type: cloudify.relationships.depends_on
+      target: public_subnet
+    - type: cloudify.relationships.depends_on
+      target: security_group
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        configure:
+          inputs:
+            resource_config: { get_property: [ SELF, resource_config, kwargs] }
+
+  nic2:
+    type: cloudify.nodes.aws.ec2.Interface
+    properties:
+      client_config: *client_config
+      resource_config:
+        kwargs:
+          Description: Primary networking interface
+          SubnetId: { get_attribute: [ public_subnet, aws_resource_id] }
+          Groups:
+          - { get_attribute: [ security_group, aws_resource_id ] }
+    relationships:
+    - type: cloudify.relationships.depends_on
+      target: public_subnet
+    - type: cloudify.relationships.depends_on
+      target: security_group
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        configure:
+          inputs:
+            resource_config: { get_property: [ SELF, resource_config, kwargs] }
+
+  security_group_rules:
+    type: cloudify.nodes.aws.ec2.SecurityGroupRuleIngress
+    properties:
+      client_config: *client_config
+      resource_config:
+        kwargs:
+          IpPermissions:
+          - IpProtocol: tcp
+            FromPort: 443 
+            ToPort: 443 
+            IpRanges:
+            - CidrIp: 0.0.0.0/0
+          - IpProtocol: udp
+            FromPort: 2114 
+            ToPort: 2114 
+            IpRanges:
+            - CidrIp: 172.31.129.0/24
+          - IpProtocol: udp
+            FromPort: 1194
+            ToPort: 1194
+            IpRanges:
+            - CidrIp: 172.31.129.0/24
+          - IpProtocol: tcp
+            FromPort: 53
+            ToPort: 53
+            IpRanges:
+            - CidrIp: 0.0.0.0/0
+          - IpProtocol: udp
+            FromPort: 53
+            ToPort: 53
+            IpRanges:
+            - CidrIp: 0.0.0.0/0 
+          - IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22 
+            IpRanges:
+            - CidrIp: 0.0.0.0/0
+          - IpProtocol: tcp
+            FromPort: 8787 
+            ToPort: 8787 
+            IpRanges:
+            - CidrIp: 0.0.0.0/0
+    relationships:
+    - type: cloudify.relationships.contained_in
+      target: security_group
+
+  security_group:
+    type: cloudify.nodes.aws.ec2.SecurityGroup
+    properties:
+      resource_config:
+        kwargs:
+          GroupName: InfobloxNIOSDDI-SecurityGroup-v3
+          Description: Created by aws-infoblox-nios-ddi-node blueprint
+          VpcId: { get_attribute: [ vpc, aws_resource_id] }
+      client_config: *client_config
+    relationships:
+    - type: cloudify.relationships.depends_on
+      target: vpc
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        configure:
+          inputs:
+            resource_config: { get_property: [ SELF, resource_config, kwargs] }
+
+  public_subnet:
+    type: cloudify.nodes.aws.ec2.Subnet
+    properties:
+      client_config: *client_config
+      use_external_resource: true
+      resource_config:
+        kwargs:
+          CidrBlock: 'N/A'
+          AvailabilityZone: 'N/A'
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            aws_resource_id: { get_input: aws_public_subnet_id }
+    relationships:
+    - type: cloudify.relationships.depends_on
+      target: vpc
+
+  grid_subnet:
+    type: cloudify.nodes.aws.ec2.Subnet
+    properties:
+      client_config: *client_config
+      use_external_resource: true
+      resource_config:
+        kwargs:
+          CidrBlock: 'N/A'
+          AvailabilityZone: 'N/A'
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            aws_resource_id: { get_input: aws_private_subnet_id }
+    relationships:
+    - type: cloudify.relationships.depends_on
+      target: vpc
+
+  vpc:
+    type: cloudify.nodes.aws.ec2.Vpc
+    properties:
+      client_config: *client_config
+      use_external_resource: true
+      resource_config:
+        kwargs:
+          CidrBlock: 'N/A'
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            aws_resource_id: { get_input: aws_vpc_id }
+    relationships:
+
+outputs:
+
+  ip:
+    description: Public IP Address
+    value: { get_attribute: [ ip, aws_resource_id ] }

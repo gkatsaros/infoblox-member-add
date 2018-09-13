@@ -1,0 +1,25 @@
+rest_calls:
+  - path: /wapi/v2.2/{{MEMBER}}
+    method: PUT
+    headers:
+      accept: application/json
+    payload:
+      pre_provisioning:
+        hardware_info:
+          - { hwmodel: 'IB-VM-825', hwtype: 'IB-VNIOS' }
+        licenses: 
+          - 'dns'
+          - 'enterprise'
+          - 'vnios'
+    #response_format: json
+    recoverable_codes: [400]
+    response_translation: [result]
+
+  - path: /wapi/v2.2/{{MEMBER}}?_function=create_token
+    method: POST
+    headers:
+      accept: application/json
+    payload:
+    response_format: json
+    recoverable_codes: [400]
+    response_translation: [token_result]
