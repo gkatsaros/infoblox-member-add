@@ -57,13 +57,13 @@ node_templates:
       resource_config:
         blueprint: 
           id: "infoblox-member"
-          blueprint_archive: "https://github.com/gkatsaros/infoblox-member-add/archive/1.0.zip"
+          blueprint_archive: "https://github.com/gkatsaros/infoblox-member-add/archive/2.0.zip"
           main_file_name: "deploy-infoblox-node.yaml"
         deployment: 
           id: { get_input: infoblox_member_name}
           inputs:
             private_ip_address: { get_input: infoblox_member_ip }
-            token: { get_attribute: [grid_member_config, result_propeties, pnode_tokens[0], token] }
+            token: { get_attribute: [ grid_member_config, result_propeties, pnode_tokens, 0, token] }
           outputs:
             ip: ip
     relationships:
