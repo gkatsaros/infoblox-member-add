@@ -70,7 +70,7 @@ inputs:
 
 
   private_ip_address:
-    default: "172.31.129.60"
+    default: "172.31.31.31"
 
   token:
     default: "dummy"
@@ -160,7 +160,6 @@ node_templates:
           SubnetId: { get_attribute: [ grid_subnet, aws_resource_id] }
           Groups:
           - { get_attribute: [ security_group, aws_resource_id ] }
-          PrivateIpAddress: { get_input: private_ip_address }
     relationships:
     - type: cloudify.relationships.depends_on
       target: public_subnet
@@ -182,6 +181,7 @@ node_templates:
           SubnetId: { get_attribute: [ public_subnet, aws_resource_id] }
           Groups:
           - { get_attribute: [ security_group, aws_resource_id ] }
+          PrivateIpAddress: { get_input: private_ip_address }
     relationships:
     - type: cloudify.relationships.depends_on
       target: public_subnet

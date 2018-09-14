@@ -12,10 +12,10 @@ inputs:
     default: "35.178.32.158"
 
   infoblox_member_ip:
-    default: "172.31.129.60"
+    default: "172.31.31.31"
 
   infoblox_member_gateway:
-    default: "172.31.129.1" 
+    default: "172.31.16.1" 
 
   infoblox_member_name:
     default: "new_infoblox_member" 
@@ -40,7 +40,7 @@ node_templates:
               #VIP_SETTINGS: {concat: ['{address:', {get_input: infoblox_member_ip }, ', gateway:', { get_input: infoblox_member_gateway}, ', subnet_mask:', '255.255.255.0}']}
               ADDRESS: {get_input: infoblox_member_ip }
               GATEWAY: { get_input: infoblox_member_gateway}
-              SUBNET: "255.255.255.0"
+              SUBNET: "255.255.240.0"
         configure:
           implementation: rest.cloudify_rest.tasks.execute
           inputs:
@@ -57,13 +57,18 @@ node_templates:
       resource_config:
         blueprint: 
           id: "infoblox-member"
-          blueprint_archive: "https://github.com/gkatsaros/infoblox-member-add/archive/2.0.zip"
+          blueprint_archive: "https://github.com/gkatsaros/infoblox-member-add/archive/3.0.zip"
           main_file_name: "deploy-infoblox-node.yaml"
         deployment: 
           id: { get_input: infoblox_member_name}
           inputs:
             private_ip_address: { get_input: infoblox_member_ip }
-            token: { get_attribute: [ grid_member_config, result_propeties, pnode_tokens, 0, token] }
+            token: { get_attribute: [ grid_member_config, result_propeties, token_result, pnode_tokens, 0, token] }
+            aws_user_data: 
+              remote_console_enabled: y
+              default_admin_password: Rus2206!
+              temp_license: grid dns nios IB-V820
+              token: { get_attribute: [ grid_member_config, result_propeties, token_result, pnode_tokens, 0, token] }
           outputs:
             ip: ip
     relationships:
