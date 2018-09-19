@@ -63,7 +63,7 @@ node_templates:
       resource_config:
         blueprint: 
           id: "infoblox-member"
-          blueprint_archive: "https://github.com/gkatsaros/infoblox-member-add/archive/4.0.zip"
+          blueprint_archive: "https://github.com/gkatsaros/infoblox-member-add/archive/5.0.zip"
           main_file_name: "deploy-infoblox-node.yaml"
         deployment: 
           id: { get_input: infoblox_member_name}

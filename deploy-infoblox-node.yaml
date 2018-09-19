@@ -249,7 +249,7 @@ node_templates:
     properties:
       resource_config:
         kwargs:
-          GroupName: InfobloxNIOSDDI-SecurityGroup-Master_v2
+          GroupName: InfobloxNIOSDDI-SecurityGroup-Member_v2
           Description: Created by aws-infoblox-nios-ddi-node blueprint
           VpcId: { get_attribute: [ vpc, aws_resource_id] }
       client_config: *client_config
