@@ -8,9 +8,9 @@ rest_calls:
         hardware_info:
           - { hwmodel: 'IB-VM-820', hwtype: 'IB-VNIOS' }
         licenses: 
-          - 'dns'
-          - 'enterprise'
           - 'vnios'
+          - 'enterprise'
+          - 'dns'
     #response_format: json
     recoverable_codes: [400]
     response_translation: [result]

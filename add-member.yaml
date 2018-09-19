@@ -9,10 +9,10 @@ inputs:
 
 
   infoblox_public_endpoint:
-    default: "35.178.32.158"
+    default: "35.178.247.62"
 
   infoblox_member_ip:
-    default: "172.31.31.31"
+    default: "172.31.31.35"
 
   infoblox_member_gateway:
     default: "172.31.16.1" 
@@ -26,7 +26,7 @@ node_templates:
   grid_member_config:
     type: cloudify.rest.Requests
     properties:
-      hosts: [{ concat: [ 'admin', ':','Rus2206!','@',{ get_input: infoblox_public_endpoint } ]} ]
+      hosts: [{ concat: [ 'admin', ':',{ get_secret: infoblox_admin_password },'@',{ get_input: infoblox_public_endpoint } ]} ]
       port: 443
       ssl: true
       verify: false
@@ -47,6 +47,12 @@ node_templates:
             template_file: "templates/pre-provision.yaml"
             params:
               MEMBER: { get_attribute: [ SELF , result_propeties, member_ref] }
+        delete:
+          implementation: rest.cloudify_rest.tasks.execute
+          inputs:
+            template_file: "templates/delete-member.yaml"
+            params:
+              MEMBER: { get_attribute: [ SELF , result_propeties, result] }
 
 
 
@@ -57,18 +63,21 @@ node_templates:
       resource_config:
         blueprint: 
           id: "infoblox-member"
-          blueprint_archive: "https://github.com/gkatsaros/infoblox-member-add/archive/3.0.zip"
+          blueprint_archive: "https://github.com/gkatsaros/infoblox-member-add/archive/4.0.zip"
           main_file_name: "deploy-infoblox-node.yaml"
         deployment: 
           id: { get_input: infoblox_member_name}
           inputs:
             private_ip_address: { get_input: infoblox_member_ip }
             token: { get_attribute: [ grid_member_config, result_propeties, token_result, pnode_tokens, 0, token] }
-            aws_user_data: 
+            aws_user_data:
+              gridmaster:
+                ip_addr: '172.31.31.42'
               remote_console_enabled: y
-              default_admin_password: Rus2206!
-              temp_license: grid dns nios IB-V820
+              default_admin_password: { get_secret: infoblox_admin_password }
+              temp_license: 'nios IB-V825 grid dns'
               token: { get_attribute: [ grid_member_config, result_propeties, token_result, pnode_tokens, 0, token] }
+              
           outputs:
             ip: ip
     relationships:

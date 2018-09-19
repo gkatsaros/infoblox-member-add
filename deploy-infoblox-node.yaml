@@ -70,7 +70,7 @@ inputs:
 
 
   private_ip_address:
-    default: "172.31.31.31"
+    default: "172.31.31.42"
 
   token:
     default: "dummy"
@@ -209,12 +209,12 @@ node_templates:
             FromPort: 2114 
             ToPort: 2114 
             IpRanges:
-            - CidrIp: 172.31.129.0/24
+            - CidrIp: 0.0.0.0/0
           - IpProtocol: udp
             FromPort: 1194
             ToPort: 1194
             IpRanges:
-            - CidrIp: 172.31.129.0/24
+            - CidrIp: 0.0.0.0/0
           - IpProtocol: tcp
             FromPort: 53
             ToPort: 53
@@ -235,6 +235,11 @@ node_templates:
             ToPort: 8787 
             IpRanges:
             - CidrIp: 0.0.0.0/0
+          - IpProtocol: icmp
+            FromPort: -1
+            ToPort: -1 
+            IpRanges:
+            - CidrIp: 0.0.0.0/0
     relationships:
     - type: cloudify.relationships.contained_in
       target: security_group
@@ -244,7 +249,7 @@ node_templates:
     properties:
       resource_config:
         kwargs:
-          GroupName: InfobloxNIOSDDI-SecurityGroup-v3
+          GroupName: InfobloxNIOSDDI-SecurityGroup-Master_v2
           Description: Created by aws-infoblox-nios-ddi-node blueprint
           VpcId: { get_attribute: [ vpc, aws_resource_id] }
       client_config: *client_config
